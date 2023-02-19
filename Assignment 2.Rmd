@@ -1,0 +1,136 @@
+---
+title: "Assignment 3"
+author: "Franklin Ngochi"
+date: "2023-02-17"
+output: pdf_document
+---
+```{r}
+library("ISLR")
+library("caret")
+library("dplyr")
+library("FNN")
+```
+#Getting the data from CSV file
+```{r}
+UB<-read.csv("C:\\Users\\ngoch\\OneDrive\\Documents\\KSU\\Fundamentals of Machine Learning\\UniversalBank.csv", header=TRUE)
+```
+
+#Dummify the "Education" variable
+```{r}
+UB$Education_1<-ifelse (UB$Education==1, 1, 0)
+UB$Education_2<-ifelse (UB$Education==2, 1, 0)
+UB$Education_3<-ifelse (UB$Education==3, 1, 0)
+```
+
+#Subsetting to only include needed columns
+```{r}
+Dataset<-select(UB,Age, Experience, Income, Family, CCAvg, Mortgage, Education_1, Education_2, Education_3, Personal.Loan, Securities.Account, CD.Account, Online, CreditCard )
+head(Dataset)
+```
+
+#Partitioning the data into training(60%) and validation set (40%)
+```{r}
+set.seed(321)
+Index<-createDataPartition(Dataset$Personal.Loan,p=0.6, list=FALSE)
+TrainSet<-Dataset[Index,]
+ValidSet<-Dataset[-Index,]
+head(TrainSet)
+head(ValidSet)
+```
+#Create dataframe for test case
+```{r}
+TestSet <- data.frame(Age = as.integer(40), Experience = as.integer(10), Income = as.integer(84), Family = as.integer(2), CCAvg = as.integer(2), Mortgage = as.integer(0),Education1 = as.integer(0), Education2 = as.integer(1), Education3 = as.integer(0),  Securities.Account = as.integer(0), CD.Account = as.integer(0), Online = as.integer(1), CreditCard = as.integer(1))
+```
+
+#Normalizing the data
+```{r}
+Train.Norm<-TrainSet
+Valid.Norm<-ValidSet
+Test.Norm<-TestSet
+Norm.Data<-preProcess(TrainSet [,1:6], method=c("center", "scale"))
+Train.Norm[, 1:6]<-predict(Norm.Data, TrainSet[,1:6])#Training Data
+Valid.Norm[,1:6]<-predict(Norm.Data, ValidSet[,1:6])#Validation Data
+Test.Norm <-predict(Norm.Data, TestSet)#Validation Data
+summary(Train.Norm)
+var(Train.Norm[,1:14])
+summary(Valid.Norm)
+var(Valid.Norm[,1:14])
+```
+
+#Performing KNN classification with k=1
+```{r}
+nn1 <-knn(train=Train.Norm[,-10], test=Valid.Norm[,-10], cl=Train.Norm[,10], k=1, prob=TRUE)
+confusionMatrix(nn1, as.factor(Valid.Norm$Personal.Loan))
+head (nn1)
+```
+#Classifying test customer with k=1 (Question 1)
+```{r}
+PredNN <-knn(train=Train.Norm[,-10], test=Test.Norm, cl=Train.Norm[,10], k=1, prob=TRUE)
+PredNN
+#Test customer would classify as 0 with a probability of 100%
+```
+#Hypertuning to find best k (Question 2)
+```{r}
+sqrt(NROW(Train.Norm))
+accuracy.df <- data.frame(k = seq(1, 55, 1), accuracy = rep(0, 55))
+for (i in 1:55) {
+  prediction<-knn(train=Train.Norm[,-10], test=Valid.Norm[,-10],   cl=Train.Norm[,10], k=i, prob=TRUE)
+  accuracy.df[i, 2] <-confusionMatrix(prediction, as.factor(Valid.Norm[,10]))$overall[1]
+  }
+ accuracy.df 
+#The choice of k that balances between overfitting and ignoring predictor information is k=3
+```
+
+#Confusion Matrix for k=3 (Question 3)
+```{r}
+nn3<-knn(train=Train.Norm[,-10], test=Valid.Norm[,-10], cl=Train.Norm[,10], k=3, prob=TRUE)
+  confusionMatrix(nn3, as.factor(Valid.Norm$Personal.Loan))
+```
+#Classify customer using the best k (Question 4)
+```{r}
+PredNN3 <-knn(train=Train.Norm[,-10], test=Test.Norm, cl=Train.Norm[,10], k=3, prob=TRUE)
+PredNN3
+#Test customer would classify as "0"
+```
+#Repartition the data into training, validation, and test sets 
+```{r}
+set.seed(321)
+Training.Index_1 = createDataPartition(Dataset$Personal.Loan, p= 0.5 , list=FALSE)
+Training.Data_1  = Dataset [Training.Index_1,] #50% Training data 
+Remaining.Data = Dataset[-Training.Index_1,] #50% remaining data [training + validation]
+Validation.Index_1 = createDataPartition(Remaining.Data$Personal.Loan, p= 0.6, list=FALSE)
+Validation.Data_1 = Remaining.Data[Validation.Index_1,] #Validation data
+Test.Data_1 = Remaining.Data[-Validation.Index_1,] #Test data
+```
+#Normalizing the data
+```{r}
+train.norm_1 <- Training.Data_1
+valid.norm_1 <- Validation.Data_1
+test.norm_1 <- Test.Data_1
+rem_data.norm_1 <- Remaining.Data
+
+norm.values_1 <- preProcess(Training.Data_1[,1:6], method=c("center", "scale"))
+
+train.norm_1[, 1:6] <- predict(norm.values_1, train.norm_1[, 1:6])  #Normalized Training Data
+valid.norm_1[, 1:6] <- predict(norm.values_1, valid.norm_1[, 1:6])#Normalized Validation Data
+test.norm_1[, 1:6] <- predict(norm.values_1, test.norm_1[, 1:6]) #Normalized Test Data
+summary(train.norm_1)
+var(train.norm_1)
+summary(valid.norm_1)
+var(valid.norm_1)
+summary(test.norm_1)
+var(test.norm_1)
+```
+
+#Perform KNN on train,validation and test sets with k=3 and compare confusion matrices (Question 5)
+```{r}
+nnTrain <-knn(train=train.norm_1[, -10], test=train.norm_1[,-10], cl=train.norm_1[,10], k=3, prob=TRUE)
+nnValidation <-knn(train=train.norm_1[, -10], test=valid.norm_1[,-10], cl=train.norm_1[,10], k=3, prob=TRUE)
+nnTest <-knn(train=train.norm_1[, -10], test=test.norm_1[,-10], cl=train.norm_1[,10], k=3, prob=TRUE)
+confusionMatrix(nnTest, as.factor(test.norm_1[,10]))
+confusionMatrix(nnTrain, as.factor(train.norm_1[,10]))
+confusionMatrix(nnValidation, as.factor(valid.norm_1[,10]))
+```
+```
+#Comments on Matrices
+The accuracy levels differ for Test (0.955), training (0.9748) and validation (0.964) data sets. The confusion matrix of the training set presents the highest accuracy. This is most likely because the model is performing on data it has already "seen", therefore it is more closely fitted to that data.
