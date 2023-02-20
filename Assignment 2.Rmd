@@ -5,7 +5,6 @@ date: "2023-02-17"
 output: pdf_document
 ---
 ```{r}
-library("ISLR")
 library("caret")
 library("dplyr")
 library("FNN")
