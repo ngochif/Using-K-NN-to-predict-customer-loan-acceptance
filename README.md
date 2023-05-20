@@ -1,4 +1,4 @@
-# Assignment-2
+# Using K-NN to predict whether a customer will accept a loan
 The purpose of this assignment is to use k-NN for classification. 
 
 Directions
